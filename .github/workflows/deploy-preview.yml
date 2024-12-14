@@ -3,7 +3,7 @@ name: Deploy Preview for Pull Requests
 on:
   pull_request:
     paths:
-      - "**/index.html" # Match index.html in any subfolder
+      - "**/index.html" # Trigger when any index.html file is modified
 
 jobs:
   deploy-preview:
@@ -17,8 +17,9 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ # Replace with the directory containing your index.html if needed
+          publish_dir: ./ # Directory containing the built files (e.g., root or 'dist/')
           publish_branch: gh-pages
+          force_orphan: true # Create gh-pages if it doesn't exist
 
       - name: Post Preview Link as Comment
         env:
