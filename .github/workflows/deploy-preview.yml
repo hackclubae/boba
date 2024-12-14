@@ -3,7 +3,7 @@ name: Deploy Preview for Pull Requests
 on:
   pull_request:
     paths:
-      - "index.html" # Trigger the workflow only if index.html is modified or added
+      - "index.html"
 
 jobs:
   deploy-preview:
@@ -13,24 +13,11 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup Node.js (optional, if needed for building)
-        uses: actions/setup-node@v3
-        with:
-          node-version: '16'
-
-      - name: Install Dependencies (if needed for build tools)
-        run: |
-          npm install
-
-      - name: Build Site (if required)
-        run: |
-          npm run build # Modify this based on your build process
-
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./ # Replace with the directory containing your index.html if it's not in the root
+          publish_dir: ./ # Ensure this contains index.html
           publish_branch: gh-pages
 
       - name: Post Preview Link as Comment
