@@ -11,36 +11,22 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Find changed index.html
-        id: changed-file
-        uses: tj-actions/changed-files@v35
-        with:
-          files: |
-            **/*index.html
-
-      - name: Set deployment directory
-        id: set-dir
-        run: |
-          CHANGED_FILE="${{ steps.changed-file.outputs.all_changed_files }}"
-          DEPLOY_DIR=$(dirname "$CHANGED_FILE")
-          echo "deploy_dir=$DEPLOY_DIR" >> $GITHUB_OUTPUT
-          echo "Changed file: $CHANGED_FILE"
-          echo "Deploy directory: $DEPLOY_DIR"
-
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
-
-      - name: Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy to Vercel
         id: deploy
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
-          cd ${{ steps.set-dir.outputs.deploy_dir }}
-          DEPLOY_URL=$(vercel deploy --token=$VERCEL_TOKEN --confirm)
-          echo "preview_url=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep 'index.html$')
+          for file in $CHANGED_FILES; do
+            DIR=$(dirname "$file")
+            echo "Deploying $file"
+            DEPLOY_URL=$(vercel deploy --token="$VERCEL_TOKEN" "$DIR" --confirm)
+            echo "$file deployed to $DEPLOY_URL"
+            echo "preview_url_$DIR=$DEPLOY_URL" >> $GITHUB_OUTPUT
+          done
 
       - name: Comment PR
         uses: actions/github-script@v6
@@ -48,10 +34,22 @@ jobs:
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
+            const fs = require('fs');
+            const outputFile = process.env.GITHUB_OUTPUT;
+            const output = fs.readFileSync(outputFile, 'utf8');
+            const deployments = output.split('\n')
+              .filter(line => line.startsWith('preview_url_'))
+              .map(line => {
+                const [key, value] = line.split('=');
+                const dir = key.replace('preview_url_', '');
+                return `- ${dir}/index.html: ${value}`;
+              })
+              .join('\n');
+            
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Preview deployed to: ${{ steps.deploy.outputs.preview_url }}\nDeployed file: ${{ steps.changed-file.outputs.all_changed_files }}'
+              body: `Preview deployments:\n${deployments}`
             })
 
