@@ -1,55 +1,48 @@
-name: Deploy Preview
+name: Deploy Preview for Pull Requests
 
 on:
   pull_request:
     paths:
-      - '**/*index.html'
+      - "index.html" # Trigger the workflow only if index.html is modified or added
 
 jobs:
   deploy-preview:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: Deploy to Vercel
-        id: deploy
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep 'index.html$')
-          for file in $CHANGED_FILES; do
-            DIR=$(dirname "$file")
-            echo "Deploying $file"
-            DEPLOY_URL=$(vercel deploy --token="$VERCEL_TOKEN" "$DIR" --confirm)
-            echo "$file deployed to $DEPLOY_URL"
-            echo "preview_url_$DIR=$DEPLOY_URL" >> $GITHUB_OUTPUT
-          done
-
-      - name: Comment PR
-        uses: actions/github-script@v6
-        if: success()
+      - name: Setup Node.js (optional, if needed for building)
+        uses: actions/setup-node@v3
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const fs = require('fs');
-            const outputFile = process.env.GITHUB_OUTPUT;
-            const output = fs.readFileSync(outputFile, 'utf8');
-            const deployments = output.split('\n')
-              .filter(line => line.startsWith('preview_url_'))
-              .map(line => {
-                const [key, value] = line.split('=');
-                const dir = key.replace('preview_url_', '');
-                return `- ${dir}/index.html: ${value}`;
-              })
-              .join('\n');
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `Preview deployments:\n${deployments}`
-            })
+          node-version: '16'
 
+      - name: Install Dependencies (if needed for build tools)
+        run: |
+          npm install
+
+      - name: Build Site (if required)
+        run: |
+          npm run build # Modify this based on your build process
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./ # Replace with the directory containing your index.html if it's not in the root
+          publish_branch: gh-pages
+
+      - name: Post Preview Link as Comment
+        env:
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          PREVIEW_URL=https://${{ github.repository_owner }}.github.io/${{ github.repository }}/index.html
+          COMMENT_BODY="Deployed preview is available at: [Preview Link](${PREVIEW_URL})"
+
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"body\": \"${COMMENT_BODY}\"}" \
+            https://api.github.com/repos/${REPO}/issues/${PR_NUMBER}/comments
