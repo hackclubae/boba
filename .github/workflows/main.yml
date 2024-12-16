@@ -1,0 +1,26 @@
+            - name: Deploy PR
+  # You may pin to the exact commit or the version.
+  # uses: AnandChowdhary/deploy-pr-action@2b343d8602fe72b0de67d6a4d754b688c2ef5013
+  uses: AnandChowdhary/deploy-pr-action@v1.5.0
+  with:
+    # GitHub token
+    token: # optional
+    # Prefix in deployment URL
+    prefix: # optional
+    # Path to create robots.txt in
+    robotsTxtPath: # optional
+    # Directory to deploy
+    distDir: 
+    # Content for robots.txt file
+    robotsContent: # optional
+    # Name of the deployment environment
+    environmentName: # optional
+    # Skip adding the URL comment on PRs
+    skipComment: # optional
+    # Skip adding labels to PRs
+    skipLabels: # optional
+    # Labels to add to PRs
+    labels: # optional
+    # Fail status check if a deploy error occurs
+    failOnDeployError: # optional
+          
